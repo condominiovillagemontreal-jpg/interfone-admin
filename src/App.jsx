@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "./supabase";
 import Apartments from "./pages/Apartments";
 import Calls from "./pages/Calls";
 import QRCode from "./pages/QRCode";
 import Config from "./pages/Config";
-import { shutdownSystem } from "./api";
+import Users from "./pages/Users";
+import Login from "./pages/Login";
 import "./App.css";
 
 const TABS = [
@@ -11,16 +13,25 @@ const TABS = [
   { id: "calls", label: "📞 Chamadas" },
   { id: "qrcode", label: "📲 QR Code" },
   { id: "config", label: "⚙️ Configurações" },
+  { id: "users", label: "👤 Usuários" },
 ];
 
 export default function App() {
+  const [session, setSession] = useState(undefined);
   const [tab, setTab] = useState("apartments");
 
-  const handleShutdown = async () => {
-    if (!confirm("Desligar o sistema? Isso vai encerrar o backend, frontend, painel admin e ngrok.")) return;
-    try { await shutdownSystem(); } catch {}
-    alert("Sistema desligado.");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
+
+  if (session === undefined) return <div className="login-page"><div className="login-card" style={{ textAlign: "center", padding: 40 }}>Carregando...</div></div>;
+  if (!session) return <Login />;
 
   return (
     <div className="layout">
@@ -44,6 +55,9 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis" }}>
+            {session.user.email}
+          </div>
           <a
             className="web-btn"
             href="https://interfonevirtual-villagemontreal.netlify.app"
@@ -52,8 +66,8 @@ export default function App() {
           >
             🌐 Abrir interfone (web)
           </a>
-          <button className="shutdown-btn" onClick={handleShutdown}>
-            🔴 Desligar sistema
+          <button className="logout-btn" onClick={handleLogout}>
+            🚪 Sair
           </button>
         </div>
       </aside>
@@ -62,6 +76,7 @@ export default function App() {
         {tab === "calls" && <Calls />}
         {tab === "qrcode" && <QRCode />}
         {tab === "config" && <Config />}
+        {tab === "users" && <Users />}
       </main>
     </div>
   );
