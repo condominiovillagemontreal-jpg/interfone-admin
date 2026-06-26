@@ -195,22 +195,22 @@ export default function Apartments() {
                     checked={p.main}
                     onChange={() => setMainPhone(i)}
                     title="Definir como principal"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", width: "auto", flexShrink: 0 }}
                   />
                   <input
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, width: "auto", minWidth: 0 }}
                     placeholder="Telefone: +5511999990001"
-                    value={p.number}
+                    value={p.number || ""}
                     onChange={(e) => setPhoneField(i, "number", e.target.value)}
                   />
                   <input
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, width: "auto", minWidth: 0 }}
                     placeholder="Nome do contato"
-                    value={p.contact}
+                    value={p.contact || ""}
                     onChange={(e) => setPhoneField(i, "contact", e.target.value)}
                   />
                   {form.phones.length > 1 && (
-                    <button className="btn btn-danger btn-sm" onClick={() => removePhone(i)}>✕</button>
+                    <button className="btn btn-danger btn-sm" style={{ flexShrink: 0 }} onClick={() => removePhone(i)}>✕</button>
                   )}
                 </div>
               ))}
