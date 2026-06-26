@@ -16,6 +16,23 @@ export async function createApartment({ id, label, resident, phones }) {
   return { ok: true };
 }
 
+export async function bulkUpsertApartments(apartments) {
+  const results = { success: 0, errors: [] };
+  for (const apt of apartments) {
+    const { data: existing } = await supabase.from("apartments").select("id").eq("label", apt.label).single();
+    if (existing) {
+      const { error } = await supabase.from("apartments").update({ resident: apt.resident, phones: apt.phones }).eq("id", existing.id);
+      if (error) results.errors.push(`${apt.label}: ${error.message}`);
+      else results.success++;
+    } else {
+      const { error } = await supabase.from("apartments").insert({ id: String(Date.now()) + Math.random().toString(36).slice(2, 6), label: apt.label, resident: apt.resident, phones: apt.phones });
+      if (error) results.errors.push(`${apt.label}: ${error.message}`);
+      else results.success++;
+    }
+  }
+  return results;
+}
+
 export async function updateApartment(id, updates) {
   const { error } = await supabase.from("apartments").update(updates).eq("id", id);
   if (error) throw error;
