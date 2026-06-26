@@ -10,10 +10,11 @@ export default function Login() {
   const [buildingName, setBuildingName] = useState("Interfone Virtual");
 
   useEffect(() => {
-    supabase.from("config").select("logo_url, building_name").eq("id", 1).single().then(({ data }) => {
+    supabase.from("config").select("logo_url,building_name").eq("id", 1).single().then(({ data }) => {
+      console.log("Login config loaded:", data);
       if (data?.logo_url) setLogoUrl(data.logo_url);
       if (data?.building_name) setBuildingName(data.building_name);
-    }).catch(() => {});
+    }).catch((err) => console.error("Config load error:", err));
   }, []);
 
   const handleLogin = async (e) => {
