@@ -41,12 +41,23 @@ export default function Users() {
 
     const authEmail = loginType === "email" ? email.trim() : `${username.trim().toLowerCase()}@interfone.local`;
 
+    // Salva sessão atual antes de criar o novo usuário
+    const { data: currentSession } = await supabase.auth.getSession();
+
     const { data, error } = await supabase.auth.signUp({ email: authEmail, password });
     if (error) {
-      const msg = error.message === "User already registered" ? "E-mail ou usuário já cadastrado." : error.message;
-      showMsg(msg, "error");
+      const m = error.message === "User already registered" ? "E-mail ou usuário já cadastrado." : error.message;
+      showMsg(m, "error");
       setSaving(false);
       return;
+    }
+
+    // Restaura sessão original (signUp pode trocar para o novo usuário)
+    if (currentSession?.session) {
+      await supabase.auth.setSession({
+        access_token: currentSession.session.access_token,
+        refresh_token: currentSession.session.refresh_token,
+      });
     }
 
     const insertData = {
