@@ -31,6 +31,7 @@ export default function Apartments() {
   const [msg, setMsg] = useState("");
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState({ text: "", type: "" });
+  const [search, setSearch] = useState("");
   const fileRef = useRef();
 
   const load = () => {
@@ -146,6 +147,12 @@ export default function Apartments() {
     XLSX.writeFile(wb, "modelo_apartamentos.xlsx");
   };
 
+  const sortedApts = [...apts].sort((a, b) => a.label.localeCompare(b.label, "pt-BR", { numeric: true }));
+  const filteredApts = sortedApts.filter((a) => {
+    if (!search.trim()) return true;
+    const s = search.toLowerCase();
+    return a.label.toLowerCase().includes(s) || (a.resident || "").toLowerCase().includes(s);
+  });
   const configured = apts.filter((a) => a.phones?.length).length;
 
   return (
@@ -206,13 +213,24 @@ export default function Apartments() {
         </div>
       </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <strong style={{ fontSize: 15 }}>Lista de Apartamentos</strong>
           <button className="btn btn-primary" onClick={openCreate}>+ Novo Apartamento</button>
         </div>
 
+        <div style={{ marginBottom: 16 }}>
+          <input
+            placeholder="Buscar por identificação ou morador..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", padding: "10px 14px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, outline: "none" }}
+          />
+        </div>
+
         {loading ? <div className="empty">Carregando...</div> : apts.length === 0 ? (
           <div className="empty">Nenhum apartamento cadastrado.</div>
+        ) : filteredApts.length === 0 ? (
+          <div className="empty">Nenhum apartamento encontrado para "{search}".</div>
         ) : (
           <table>
             <thead>
@@ -222,7 +240,7 @@ export default function Apartments() {
               </tr>
             </thead>
             <tbody>
-              {apts.map((apt) => {
+              {filteredApts.map((apt) => {
                 const main = getMainPhone(apt);
                 return (
                   <tr key={apt.id}>
