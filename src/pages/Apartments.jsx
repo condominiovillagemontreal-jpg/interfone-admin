@@ -1,7 +1,25 @@
 import { useState, useEffect } from "react";
 import { getApartments, createApartment, updateApartment, deleteApartment } from "../api";
 
-const EMPTY = { id: "", label: "", resident: "", phones: [""] };
+const EMPTY_PHONE = { number: "", contact: "", main: true };
+const EMPTY = { id: "", label: "", resident: "", phones: [{ ...EMPTY_PHONE }] };
+
+function phonesToForm(apt) {
+  if (!apt.phones?.length) return [{ ...EMPTY_PHONE }];
+  if (typeof apt.phones[0] === "string") {
+    return apt.phones.map((p, i) => ({ number: p, contact: "", main: i === 0 }));
+  }
+  const hasMain = apt.phones.some((p) => p.main);
+  return apt.phones.map((p, i) => ({ ...p, main: hasMain ? !!p.main : i === 0 }));
+}
+
+function phonesFromForm(phones) {
+  return phones.filter((p) => p.number.trim()).map((p) => ({
+    number: p.number.trim(),
+    contact: p.contact.trim(),
+    main: !!p.main,
+  }));
+}
 
 export default function Apartments() {
   const [apts, setApts] = useState([]);
@@ -18,39 +36,52 @@ export default function Apartments() {
 
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => { setForm(EMPTY); setModal("create"); setMsg(""); };
+  const openCreate = () => { setForm({ ...EMPTY, id: String(Date.now()), phones: [{ ...EMPTY_PHONE }] }); setModal("create"); setMsg(""); };
   const openEdit = (apt) => {
-    setForm({ ...apt, phones: apt.phones?.length ? apt.phones : [""] });
+    setForm({ ...apt, phones: phonesToForm(apt) });
     setModal(apt);
     setMsg("");
   };
   const closeModal = () => { setModal(null); setMsg(""); };
 
-  const setPhone = (i, val) => {
-    const phones = [...form.phones];
-    phones[i] = val;
+  const setPhoneField = (i, field, val) => {
+    const phones = form.phones.map((p, idx) => idx === i ? { ...p, [field]: val } : p);
     setForm({ ...form, phones });
   };
-  const addPhone = () => setForm({ ...form, phones: [...form.phones, ""] });
-  const removePhone = (i) => setForm({ ...form, phones: form.phones.filter((_, idx) => idx !== i) });
+  const setMainPhone = (i) => {
+    const phones = form.phones.map((p, idx) => ({ ...p, main: idx === i }));
+    setForm({ ...form, phones });
+  };
+  const addPhone = () => setForm({ ...form, phones: [...form.phones, { number: "", contact: "", main: false }] });
+  const removePhone = (i) => {
+    let phones = form.phones.filter((_, idx) => idx !== i);
+    if (phones.length && !phones.some((p) => p.main)) phones[0].main = true;
+    setForm({ ...form, phones });
+  };
 
   const handleSave = async () => {
-    if (!form.id || !form.label) return setMsg("ID e Identificação são obrigatórios.");
+    if (!form.label) return setMsg("Identificação é obrigatória.");
     setSaving(true);
-    const phones = form.phones.map((p) => p.trim()).filter(Boolean);
+    const phones = phonesFromForm(form.phones);
     try {
       if (modal === "create") await createApartment({ ...form, phones });
-      else await updateApartment(modal.id, { ...form, phones });
+      else await updateApartment(modal.id, { label: form.label, resident: form.resident, phones });
       load();
       closeModal();
     } catch { setMsg("Erro ao salvar."); }
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm(`Remover o apartamento ${id}?`)) return;
-    await deleteApartment(id);
+  const handleDelete = async (apt) => {
+    if (!confirm(`Remover ${apt.label}?`)) return;
+    await deleteApartment(apt.id);
     load();
+  };
+
+  const getMainPhone = (apt) => {
+    if (!apt.phones?.length) return null;
+    if (typeof apt.phones[0] === "string") return { number: apt.phones[0], contact: "" };
+    return apt.phones.find((p) => p.main) || apt.phones[0];
   };
 
   const configured = apts.filter((a) => a.phones?.length).length;
@@ -59,7 +90,7 @@ export default function Apartments() {
     <div>
       <div className="page-header">
         <h2>Apartamentos</h2>
-        <p>Gerencie os ramais, moradores e telefones do condomínio</p>
+        <p>Gerencie os apartamentos, moradores e telefones do condomínio</p>
       </div>
 
       <div className="stats-grid">
@@ -79,8 +110,8 @@ export default function Apartments() {
           <div className="stat-label">Status</div>
           <div className="stat-value" style={{ fontSize: 16, paddingTop: 8 }}>
             {configured === apts.length && apts.length > 0
-              ? <span className="badge badge-green">✅ Completo</span>
-              : <span className="badge badge-yellow">⚠️ Incompleto</span>}
+              ? <span className="badge badge-green">Completo</span>
+              : <span className="badge badge-yellow">Incompleto</span>}
           </div>
         </div>
       </div>
@@ -97,41 +128,39 @@ export default function Apartments() {
           <table>
             <thead>
               <tr>
-                <th>ID</th><th>Identificação</th><th>Morador</th>
-                <th>Telefones</th><th>Status</th><th>Ações</th>
+                <th>Identificação</th><th>Morador</th>
+                <th>Telefone principal</th><th>Status</th><th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {apts.map((apt) => (
-                <tr key={apt.id}>
-                  <td><code style={{ background: "#f3f4f6", padding: "2px 8px", borderRadius: 4 }}>{apt.id}</code></td>
-                  <td><strong>{apt.label}</strong></td>
-                  <td>{apt.resident || <span style={{ color: "#9ca3af" }}>—</span>}</td>
-                  <td>
-                    {apt.phones?.length ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {apt.phones.map((p, i) => (
-                          <span key={i} style={{ fontSize: 13 }}>
-                            {i === 0 ? "📱" : "📲"} {p}
-                            {i > 0 && <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>fallback</span>}
-                          </span>
-                        ))}
+              {apts.map((apt) => {
+                const main = getMainPhone(apt);
+                return (
+                  <tr key={apt.id}>
+                    <td><strong>{apt.label}</strong></td>
+                    <td>{apt.resident || <span style={{ color: "#9ca3af" }}>—</span>}</td>
+                    <td>
+                      {main ? (
+                        <span style={{ fontSize: 13 }}>
+                          {main.number}
+                          {main.contact && <span style={{ color: "#6b7280", marginLeft: 6 }}>({main.contact})</span>}
+                        </span>
+                      ) : <span style={{ color: "#9ca3af" }}>Não configurado</span>}
+                    </td>
+                    <td>
+                      {apt.phones?.length
+                        ? <span className="badge badge-green">Ativo</span>
+                        : <span className="badge badge-red">Sem telefone</span>}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openEdit(apt)}>Editar</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(apt)}>Remover</button>
                       </div>
-                    ) : <span style={{ color: "#9ca3af" }}>Não configurado</span>}
-                  </td>
-                  <td>
-                    {apt.phones?.length
-                      ? <span className="badge badge-green">✅ Ativo</span>
-                      : <span className="badge badge-red">❌ Sem telefone</span>}
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openEdit(apt)}>✏️ Editar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(apt.id)}>🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -139,15 +168,9 @@ export default function Apartments() {
 
       {modal && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
             <h3>{modal === "create" ? "Novo Apartamento" : `Editar ${modal.label}`}</h3>
 
-            <div className="form-group">
-              <label>ID / Ramal *</label>
-              <input placeholder="Ex: 101" value={form.id}
-                onChange={(e) => setForm({ ...form, id: e.target.value })}
-                disabled={modal !== "create"} />
-            </div>
             <div className="form-group">
               <label>Identificação *</label>
               <input placeholder="Ex: Apto 101" value={form.label}
@@ -161,19 +184,30 @@ export default function Apartments() {
 
             <div className="form-group">
               <label>Telefones para discagem</label>
-              <small style={{ display: "block", color: "#6b7280", fontSize: 12, marginBottom: 8 }}>
-                O sistema liga do 1° ao último em sequência se não houver resposta.
+              <small style={{ display: "block", color: "#6b7280", fontSize: 12, marginBottom: 10 }}>
+                Selecione qual será o telefone principal. Os demais serão usados como fallback.
               </small>
               {form.phones.map((p, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 13, color: "#6b7280", minWidth: 80 }}>
-                    {i === 0 ? "📱 Principal" : `📲 Fallback ${i}`}
-                  </span>
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="mainPhone"
+                    checked={p.main}
+                    onChange={() => setMainPhone(i)}
+                    title="Definir como principal"
+                    style={{ cursor: "pointer" }}
+                  />
                   <input
                     style={{ flex: 1 }}
-                    placeholder="+5511999990001"
-                    value={p}
-                    onChange={(e) => setPhone(i, e.target.value)}
+                    placeholder="Telefone: +5511999990001"
+                    value={p.number}
+                    onChange={(e) => setPhoneField(i, "number", e.target.value)}
+                  />
+                  <input
+                    style={{ flex: 1 }}
+                    placeholder="Nome do contato"
+                    value={p.contact}
+                    onChange={(e) => setPhoneField(i, "contact", e.target.value)}
                   />
                   {form.phones.length > 1 && (
                     <button className="btn btn-danger btn-sm" onClick={() => removePhone(i)}>✕</button>
@@ -182,7 +216,7 @@ export default function Apartments() {
               ))}
               {form.phones.length < 5 && (
                 <button className="btn btn-secondary btn-sm" onClick={addPhone} style={{ marginTop: 4 }}>
-                  + Adicionar fallback
+                  + Adicionar telefone
                 </button>
               )}
             </div>

@@ -10,7 +10,8 @@ export async function getApartments() {
 }
 
 export async function createApartment({ id, label, resident, phones }) {
-  const { error } = await supabase.from("apartments").insert({ id, label, resident: resident || "", phones: phones || [] });
+  const finalId = id || String(Date.now());
+  const { error } = await supabase.from("apartments").insert({ id: finalId, label, resident: resident || "", phones: phones || [] });
   if (error) throw error;
   return { ok: true };
 }

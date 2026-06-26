@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { getConfig } from "./api";
 import Apartments from "./pages/Apartments";
 import Calls from "./pages/Calls";
 import QRCode from "./pages/QRCode";
@@ -19,10 +20,16 @@ const TABS = [
 export default function App() {
   const [session, setSession] = useState(undefined);
   const [tab, setTab] = useState("apartments");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [buildingName, setBuildingName] = useState("Interfone Virtual");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    getConfig().then((cfg) => {
+      if (cfg.logoUrl) setLogoUrl(cfg.logoUrl);
+      if (cfg.buildingName) setBuildingName(cfg.buildingName);
+    }).catch(() => {});
     return () => subscription.unsubscribe();
   }, []);
 
@@ -37,9 +44,13 @@ export default function App() {
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <div className="logo">🔔</div>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="sidebar-logo" />
+          ) : (
+            <div className="logo">🔔</div>
+          )}
           <div>
-            <h1>Interfone Virtual</h1>
+            <h1>{buildingName}</h1>
             <p>Painel de Administração</p>
           </div>
         </div>
@@ -48,7 +59,15 @@ export default function App() {
             <button
               key={t.id}
               className={`nav-btn ${tab === t.id ? "active" : ""}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                if (tab === "config" && t.id !== "config") {
+                  getConfig().then((cfg) => {
+                    if (cfg.logoUrl) setLogoUrl(cfg.logoUrl);
+                    if (cfg.buildingName) setBuildingName(cfg.buildingName);
+                  }).catch(() => {});
+                }
+                setTab(t.id);
+              }}
             >
               {t.label}
             </button>

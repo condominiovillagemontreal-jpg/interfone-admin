@@ -13,6 +13,14 @@
 
 .logo { font-size: 28px; }
 
+.sidebar-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
 .sidebar-header h1 { font-size: 14px; font-weight: 600; line-height: 1.3; }
 .sidebar-header p { font-size: 11px; opacity: .5; margin-top: 2px; }
 
