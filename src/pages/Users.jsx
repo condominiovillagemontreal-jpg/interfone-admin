@@ -29,7 +29,8 @@ export default function Users() {
     setSaving(true);
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      showMsg(error.message, "error");
+      const msg = error.message === "User already registered" ? "E-mail já cadastrado." : error.message;
+      showMsg(msg, "error");
     } else {
       await supabase.from("admin_users").insert({ id: data.user.id, email });
       showMsg("Usuário criado com sucesso!");
