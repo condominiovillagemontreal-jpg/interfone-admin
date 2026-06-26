@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { getConfig } from "./api";
+import Dashboard from "./pages/Dashboard";
 import Apartments from "./pages/Apartments";
 import Calls from "./pages/Calls";
 import QRCode from "./pages/QRCode";
@@ -10,6 +11,7 @@ import Login from "./pages/Login";
 import "./App.css";
 
 const TABS = [
+  { id: "dashboard", label: "📊 Dashboard" },
   { id: "apartments", label: "🏠 Apartamentos" },
   { id: "calls", label: "📞 Chamadas" },
   { id: "qrcode", label: "📲 QR Code" },
@@ -19,7 +21,7 @@ const TABS = [
 
 export default function App() {
   const [session, setSession] = useState(undefined);
-  const [tab, setTab] = useState("apartments");
+  const [tab, setTab] = useState("dashboard");
   const [logoUrl, setLogoUrl] = useState("");
   const [buildingName, setBuildingName] = useState("Interfone Virtual");
 
@@ -91,6 +93,7 @@ export default function App() {
         </div>
       </aside>
       <main className="content">
+        {tab === "dashboard" && <Dashboard onNavigate={setTab} />}
         {tab === "apartments" && <Apartments />}
         {tab === "calls" && <Calls />}
         {tab === "qrcode" && <QRCode />}
