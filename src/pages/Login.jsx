@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
 export default function Login() {
@@ -6,6 +6,15 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [buildingName, setBuildingName] = useState("Interfone Virtual");
+
+  useEffect(() => {
+    supabase.from("config").select("logo_url, building_name").eq("id", 1).single().then(({ data }) => {
+      if (data?.logo_url) setLogoUrl(data.logo_url);
+      if (data?.building_name) setBuildingName(data.building_name);
+    }).catch(() => {});
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,8 +33,12 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <div style={{ fontSize: 40 }}>🔔</div>
-          <h1>Interfone Virtual</h1>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" style={{ maxWidth: 120, maxHeight: 80, objectFit: "contain" }} />
+          ) : (
+            <div style={{ fontSize: 40 }}>🔔</div>
+          )}
+          <h1>{buildingName}</h1>
           <p>Painel de Administração</p>
         </div>
         <form onSubmit={handleLogin}>
