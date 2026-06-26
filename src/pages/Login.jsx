@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "../supabase";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [loginValue, setLoginValue] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -11,8 +11,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    const isEmail = loginValue.includes("@");
+    const email = isEmail ? loginValue.trim() : `${loginValue.trim().toLowerCase()}@interfone.local`;
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message);
+    if (error) setError(error.message === "Invalid login credentials" ? "Usuário ou senha incorretos." : error.message);
     setLoading(false);
   };
 
@@ -33,9 +37,9 @@ export default function Login() {
             }}>{error}</div>
           )}
           <div className="form-group">
-            <label>Email</label>
-            <input type="email" placeholder="admin@exemplo.com" value={email}
-              onChange={(e) => setEmail(e.target.value)} required />
+            <label>E-mail ou nome de usuário</label>
+            <input placeholder="admin@exemplo.com ou sindico" value={loginValue}
+              onChange={(e) => setLoginValue(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Senha</label>

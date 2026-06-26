@@ -3,7 +3,10 @@ import { supabase } from "../supabase";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
+  const [name, setName] = useState("");
+  const [loginType, setLoginType] = useState("email");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: "", type: "" });
@@ -24,18 +27,37 @@ export default function Users() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!name.trim()) return showMsg("Nome é obrigatório.", "error");
     if (password.length < 6) return showMsg("A senha deve ter pelo menos 6 caracteres.", "error");
+
+    if (loginType === "email" && !email.trim()) return showMsg("Email é obrigatório.", "error");
+    if (loginType === "username" && !username.trim()) return showMsg("Nome de usuário é obrigatório.", "error");
+
     setSaving(true);
-    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    const authEmail = loginType === "email" ? email.trim() : `${username.trim().toLowerCase()}@interfone.local`;
+
+    const { data, error } = await supabase.auth.signUp({ email: authEmail, password });
     if (error) {
-      const msg = error.message === "User already registered" ? "E-mail já cadastrado." : error.message;
+      const msg = error.message === "User already registered" ? "E-mail ou usuário já cadastrado." : error.message;
       showMsg(msg, "error");
+      setSaving(false);
+      return;
+    }
+
+    const insertData = {
+      id: data.user.id,
+      email: loginType === "email" ? email.trim() : null,
+      name: name.trim(),
+      username: loginType === "username" ? username.trim().toLowerCase() : null,
+    };
+
+    const { error: dbErr } = await supabase.from("admin_users").insert(insertData);
+    if (dbErr) {
+      showMsg("Erro ao salvar dados: " + dbErr.message, "error");
     } else {
-      await supabase.from("admin_users").insert({ id: data.user.id, email });
       showMsg("Usuário criado com sucesso!");
-      setEmail("");
-      setPassword("");
+      setName(""); setEmail(""); setUsername(""); setPassword("");
       loadUsers();
     }
     setSaving(false);
@@ -54,7 +76,7 @@ export default function Users() {
   };
 
   const handleDeleteUser = async (user) => {
-    if (!confirm(`Remover o usuário ${user.email}?`)) return;
+    if (!confirm(`Remover o usuário ${user.name || user.email || user.username}?`)) return;
     await supabase.from("admin_users").delete().eq("id", user.id);
     loadUsers();
     showMsg("Usuário removido da lista.");
@@ -78,20 +100,53 @@ export default function Users() {
 
       <div className="card">
         <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Novo Usuário</h3>
-        <form onSubmit={handleCreate} style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div className="form-group" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
-            <label>Email</label>
-            <input type="email" placeholder="usuario@exemplo.com" value={email}
-              onChange={(e) => setEmail(e.target.value)} required />
+        <form onSubmit={handleCreate}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <div className="form-group" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
+              <label>Nome *</label>
+              <input placeholder="Nome completo" value={name}
+                onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div className="form-group" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
+              <label>Senha (mínimo 6 caracteres) *</label>
+              <input type="password" placeholder="Senha" value={password}
+                onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            </div>
           </div>
-          <div className="form-group" style={{ flex: 1, minWidth: 200, marginBottom: 0 }}>
-            <label>Senha (mínimo 6 caracteres)</label>
-            <input type="password" placeholder="Senha" value={password}
-              onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: "#374151", display: "block", marginBottom: 8 }}>Tipo de login</label>
+            <div style={{ display: "flex", gap: 16 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14 }}>
+                <input type="radio" name="loginType" checked={loginType === "email"} onChange={() => setLoginType("email")} />
+                E-mail
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14 }}>
+                <input type="radio" name="loginType" checked={loginType === "username"} onChange={() => setLoginType("username")} />
+                Nome de usuário
+              </label>
+            </div>
           </div>
-          <button type="submit" className="btn btn-primary" disabled={saving} style={{ height: 38 }}>
-            {saving ? "Criando..." : "+ Criar usuário"}
-          </button>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+            {loginType === "email" ? (
+              <div className="form-group" style={{ flex: 1, minWidth: 250, marginBottom: 0 }}>
+                <label>E-mail *</label>
+                <input type="email" placeholder="usuario@exemplo.com" value={email}
+                  onChange={(e) => setEmail(e.target.value)} />
+              </div>
+            ) : (
+              <div className="form-group" style={{ flex: 1, minWidth: 250, marginBottom: 0 }}>
+                <label>Nome de usuário *</label>
+                <input placeholder="Ex: sindico, portaria" value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ""))} />
+                <small style={{ color: "#6b7280", fontSize: 11 }}>Apenas letras, números, pontos e hífens</small>
+              </div>
+            )}
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ height: 38 }}>
+              {saving ? "Criando..." : "+ Criar usuário"}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -103,14 +158,21 @@ export default function Users() {
           <table>
             <thead>
               <tr>
-                <th>Email</th>
+                <th>Nome</th>
+                <th>Login</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.email}</td>
+                  <td>{u.name || <span style={{ color: "#9ca3af" }}>—</span>}</td>
+                  <td>
+                    {u.username
+                      ? <span><span className="badge badge-gray">Usuário</span> {u.username}</span>
+                      : <span><span className="badge badge-gray">E-mail</span> {u.email}</span>
+                    }
+                  </td>
                   <td>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {changePw === u.id ? (
@@ -122,8 +184,8 @@ export default function Users() {
                         </>
                       ) : (
                         <>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setChangePw(u.id)}>🔑 Trocar senha</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u)}>🗑️</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setChangePw(u.id)}>Trocar senha</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u)}>Remover</button>
                         </>
                       )}
                     </div>
