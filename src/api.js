@@ -64,17 +64,25 @@ export async function updateConfig(form) {
   return { ok: true };
 }
 
-// ── Logo (upload local backend) ───────────────────────────
+// ── Logo (Supabase Storage) ───────────────────────────────
 export async function uploadLogo(file) {
-  const form = new FormData();
-  form.append("logo", file);
-  const r = await fetch(`${BACKEND}/api/admin/logo`, { method: "POST", body: form });
-  return r.json();
+  const ext = file.name.split(".").pop();
+  const fileName = `logo.${ext}`;
+  const { error } = await supabase.storage.from("logos").upload(fileName, file, { upsert: true });
+  if (error) throw error;
+  const { data: urlData } = supabase.storage.from("logos").getPublicUrl(fileName);
+  const url = urlData.publicUrl + "?t=" + Date.now();
+  await supabase.from("config").update({ logo_url: url }).eq("id", 1);
+  return { ok: true, url };
 }
 
 export async function deleteLogo() {
-  const r = await fetch(`${BACKEND}/api/admin/logo`, { method: "DELETE" });
-  return r.json();
+  const { data: files } = await supabase.storage.from("logos").list();
+  if (files?.length) {
+    await supabase.storage.from("logos").remove(files.map((f) => f.name));
+  }
+  await supabase.from("config").update({ logo_url: "" }).eq("id", 1);
+  return { ok: true };
 }
 
 // ── Chamadas (log local backend) ──────────────────────────

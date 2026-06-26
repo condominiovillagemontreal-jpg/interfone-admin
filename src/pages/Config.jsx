@@ -67,7 +67,8 @@ export default function Config() {
     setUploadingLogo(true);
     try {
       const data = await uploadLogo(file);
-      setLogoPreview(data.url + "?t=" + Date.now());
+      setLogoPreview(data.url);
+      setForm((f) => ({ ...f, logoUrl: data.url }));
       showMsg("✅ Logo enviada com sucesso!");
     } catch { showMsg("❌ Erro ao enviar logo.", "error"); }
     setUploadingLogo(false);
