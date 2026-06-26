@@ -12,6 +12,10 @@ export default function Users() {
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [changePw, setChangePw] = useState(null);
   const [newPw, setNewPw] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editUsername, setEditUsername] = useState("");
 
   const showMsg = (text, type = "success") => {
     setMsg({ text, type });
@@ -72,6 +76,35 @@ export default function Users() {
       showMsg("Senha alterada com sucesso!");
       setChangePw(null);
       setNewPw("");
+    }
+  };
+
+  const startEdit = (user) => {
+    setEditing(user.id);
+    setEditName(user.name || "");
+    setEditEmail(user.email || "");
+    setEditUsername(user.username || "");
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setEditName("");
+    setEditEmail("");
+    setEditUsername("");
+  };
+
+  const handleSaveEdit = async (userId) => {
+    if (!editName.trim()) return showMsg("Nome é obrigatório.", "error");
+    const updates = { name: editName.trim() };
+    if (editEmail.trim()) updates.email = editEmail.trim();
+    if (editUsername.trim()) updates.username = editUsername.trim().toLowerCase();
+    const { error } = await supabase.from("admin_users").update(updates).eq("id", userId);
+    if (error) {
+      showMsg("Erro ao salvar: " + error.message, "error");
+    } else {
+      showMsg("Usuário atualizado!");
+      cancelEdit();
+      loadUsers();
     }
   };
 
@@ -166,25 +199,44 @@ export default function Users() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.name || <span style={{ color: "#9ca3af" }}>—</span>}</td>
                   <td>
-                    {u.username
-                      ? <span><span className="badge badge-gray">Usuário</span> {u.username}</span>
-                      : <span><span className="badge badge-gray">E-mail</span> {u.email}</span>
-                    }
+                    {editing === u.id ? (
+                      <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome"
+                        style={{ padding: "5px 8px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }} />
+                    ) : (u.name || <span style={{ color: "#9ca3af" }}>—</span>)}
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {changePw === u.id ? (
+                    {editing === u.id ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="E-mail (opcional)"
+                          style={{ padding: "5px 8px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }} />
+                        <input value={editUsername} onChange={(e) => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ""))} placeholder="Username (opcional)"
+                          style={{ padding: "5px 8px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }} />
+                      </div>
+                    ) : (
+                      u.username
+                        ? <span><span className="badge badge-gray">Usuário</span> {u.username}</span>
+                        : <span><span className="badge badge-gray">E-mail</span> {u.email}</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {editing === u.id ? (
+                        <>
+                          <button className="btn btn-success btn-sm" onClick={() => handleSaveEdit(u.id)}>Salvar</button>
+                          <button className="btn btn-secondary btn-sm" onClick={cancelEdit}>Cancelar</button>
+                        </>
+                      ) : changePw === u.id ? (
                         <>
                           <input type="password" placeholder="Nova senha" value={newPw}
-                            onChange={(e) => setNewPw(e.target.value)} style={{ width: 160, padding: "6px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }} />
+                            onChange={(e) => setNewPw(e.target.value)} style={{ width: 140, padding: "5px 8px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 6 }} />
                           <button className="btn btn-success btn-sm" onClick={() => handleChangePassword(u.id)}>Salvar</button>
                           <button className="btn btn-secondary btn-sm" onClick={() => { setChangePw(null); setNewPw(""); }}>Cancelar</button>
                         </>
                       ) : (
                         <>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setChangePw(u.id)}>Trocar senha</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => startEdit(u)}>Editar</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setChangePw(u.id)}>Senha</button>
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u)}>Remover</button>
                         </>
                       )}
